@@ -5,7 +5,7 @@
     <script src="./CubicVR.min.js" type="text/javascript"> </script>
     <script src="./ammo.min.js" type="text/javascript"></script>
     <script type='text/javascript'>
-      var ids = 
+      var ids =
       [
         "037d966340de5ad4b73aec5b6d9dc1e894a64109",
         "052fc53506b2325e0f6886526c00c0078b772ece",
@@ -114,7 +114,73 @@
         "f5b231cf402bf7c9f48ca98d09a28b190f87e11c",
         "ff3da079cc4e081fb8f1d101647e861a9fd0786c"
       ];
-      function webGLStart(gl, canvas) {
+
+
+      function initTextures(gl, canvas) {
+        var textCtx = document.createElement("canvas").getContext("2d");
+        // var gl = getWebGLContext(canvas);
+
+        // Puts text in center of canvas.
+        function makeTextCanvas(text, width, height) {
+          textCtx.canvas.width  = width;
+          textCtx.canvas.height = height;
+          textCtx.font = "50px monospace";
+          textCtx.textAlign = "center";
+          textCtx.textBaseline = "middle";
+          textCtx.fillStyle = "black";
+          textCtx.clearRect(0, 0, textCtx.canvas.width, textCtx.canvas.height);
+          textCtx.fillText(text, width / 2, height / 2);
+          return textCtx.canvas;
+        }
+
+        var textTextures = [
+          "anna",   // 0
+          "colin",  // 1
+          "james",  // 2
+          "danny",  // 3
+          "kalin",  // 4
+          "hiro",   // 5
+          "hirod",   // 6
+        ].map(function(name) {
+          var textCanvas = makeTextCanvas(name, 100, 26);
+          var textWidth  = textCanvas.width;
+          var textHeight = textCanvas.height;
+          var textTex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, textTex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textCanvas);
+          // make sure we can render it even if it's not a power of 2
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          return {
+            texture: textTex,
+            width: textWidth,
+            height: textHeight,
+          };
+        });
+
+        console.log(textTextures);
+
+        // cubeTexture = gl.createTexture();
+        // cubeImage = new Image();
+        // cubeImage.onload = function() { handleTextureLoaded(cubeImage, cubeTexture); }
+        // cubeImage.src = "floor.png";
+
+        cubeImage = new Image();
+        cubeImage.onload = function() { webGLStart(gl, canvas, textTextures, cubeImage); }
+        cubeImage.src = "./images/floor.png";
+
+      }
+
+
+      function webGLStart(gl, canvas, textTextures, cubeImage) {
+
+
+
+
+
+
+
         // New scene with our canvas dimensions and default camera with FOV 80
         var scene = new CubicVR.Scene(canvas.width, canvas.height, 80);
         scene.resize(canvas.width,canvas.height);
@@ -129,7 +195,7 @@
         }));
         CubicVR.setSoftShadows(true);
         CubicVR.setGlobalAmbient([0.5,0.5,0.5]);
-        
+
         // init physics manager
         var physics = new CubicVR.ScenePhysics();
         physics.setGravity([0,-4,0]);
@@ -141,9 +207,11 @@
           env_amount: 1.0,
           textures: {
             color:  new CubicVR.Texture("./images/floor.png"),
+            // color:  new CubicVR.Texture("./images/ff3da079cc4e081fb8f1d101647e861a9fd0786c.png"),
           }
+          // textures: textTextures[0].texture
         });
-        
+
         var floorMesh = CubicVR.primitives.box({
           size: 1.0,
           material: floorMaterial,
@@ -152,14 +220,14 @@
             scale: [0.05, 0.05, 0.05]
           }
         }).prepare();
-        
+
         var floorObject = new CubicVR.SceneObject({
           mesh: floorMesh,
           scale: [10, 0.2, 10],
           position: [0, 0, 0],
         });
         floorObject.shadowCast = false;
-        
+
         var rigidFloor = new CubicVR.RigidBody(floorObject, {
           type: CubicVR.enums.physics.body.STATIC,
           collision: {
@@ -168,8 +236,8 @@
           }
         });
         physics.bindRigidBody(rigidFloor);
-        
-        
+
+
         // Add SceneObject containing the mesh to the scene
         scene.bindSceneObject(floorObject);
 
@@ -180,8 +248,13 @@
           center: [0.0, 0.2, 0.0]
         };
 
-        var length = ids.length;
+        var length = textTextures.length;
+
         for(i = 0; i < length; i++) {
+
+          var tex = textTextures[i];
+          console.log(tex.texture);
+
           var sphereMesh = new CubicVR.Mesh({
             primitive: {
               type: "sphere",
@@ -189,9 +262,10 @@
               lat: 32,
               lon: 32,
               material: new CubicVR.Material({
-                textures: {
-                  color: "./images/"+ids[i]+".png"
-                }
+                textures: tex.texture
+                // textures: {
+                //   color: "./images/"+ids[i]+".png"
+                // }
               }),
               uvmapper: sphereUV
             },
@@ -204,9 +278,9 @@
             rotation:[Math.random()*360,Math.random()*360,Math.random()*360]
           });
 
-          // Add SceneObjects                
+          // Add SceneObjects
           scene.bindSceneObject(sphereObject);
-          
+
           var rigidSphere = new CubicVR.RigidBody(sphereObject, {
             type: CubicVR.enums.physics.body.DYNAMIC,
             collision: {
@@ -220,17 +294,17 @@
         // set initial camera position and target
         scene.camera.position = [4, 30, 4];
         scene.camera.target = [0, 0, 0];
-        
+
         // Add our scene to the window resize list
         CubicVR.addResizeable(scene);
 
-        
+
         // initialize a mouse view controller
         var mvc = new CubicVR.MouseViewController(canvas, scene.camera);
         var kbd = CubicVR.keyboard;
         var run = false;
         var speed = 1.0;
-        
+
         // Start our main drawing loop, it provides a timer and the gl context as parameters
         CubicVR.MainLoop(function(timer, gl) {
           var seconds = timer.getSeconds();
@@ -270,15 +344,15 @@
 
         var pickConstraint = null;
         var pickDist = 0;
-        
+
         mvc.setEvents({
           mouseMove: function (ctx, mpos, mdelta, keyState) {
-            
+
             if (!ctx.mdown) return;
-            
+
             if (pickConstraint) {
               pickConstraint.setPosition(scene.camera.unProject(mpos[0],mpos[1],pickDist));
-            } else {                   
+            } else {
               ctx.orbitView(mdelta);
             }
             //          ctx.panView(mdelta);
@@ -289,25 +363,25 @@
           mouseDown: function (ctx, mpos, keyState) {
             var rayTo = scene.camera.unProject(mpos[0],mpos[1]);
             var result = physics.getRayHit(scene.camera.position,rayTo);
-            
+
             if (result && !pickConstraint) {
               pickConstraint = new CubicVR.Constraint({
                 type: CubicVR.enums.physics.constraint.P2P,
                 rigidBody: result.rigidBody,
                 positionA: result.localPosition
-              });                        
-              
-              physics.addConstraint(pickConstraint);                       
-              pickDist = CubicVR.vec3.length(CubicVR.vec3.subtract(scene.camera.position,result.position));                        
+              });
+
+              physics.addConstraint(pickConstraint);
+              pickDist = CubicVR.vec3.length(CubicVR.vec3.subtract(scene.camera.position,result.position));
               pickConstraint.setPosition(scene.camera.unProject(mpos[0],mpos[1],pickDist));
             }
-            
+
           },
           mouseUp: function(ctx, mpos, keyState) {
             if (pickConstraint) {
               physics.removeConstraint(pickConstraint);
               pickConstraint = null;
-            }                        
+            }
           },
           keyDown: null,
           keyUp: null
@@ -315,7 +389,8 @@
       }
     </script>
   </head>
-  
-  <body onLoad="CubicVR.start('auto',webGLStart);"></body>
-  
+
+  <!-- <body onLoad="CubicVR.start('auto',webGLStart);"></body> -->
+  <body onLoad="CubicVR.start('auto',initTextures);"></body>
+
 </html>
